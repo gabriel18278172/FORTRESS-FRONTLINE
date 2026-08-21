@@ -59,10 +59,11 @@ body{touch-action:none}.app{height:100%;display:flex;flex-direction:column}
 <div class="row"><span>Damage</span><b id="selDamage">22</b></div>
 <div class="row"><span>Range</span><b id="selRange">135</b></div>
 <div class="row"><span>Target</span><b id="selTarget">First</b></div>
+<button id="targetBtn" class="btn upgrade">Target: First</button>
 <button id="upgradeBtn" class="btn primary upgrade">Upgrade</button>
 <button id="sellBtn" class="btn upgrade">Sell</button>
 </div>
-<div class="info"><b>How to play</b><br>Drag a tower from the panel onto any open spot that is not on the track, like a classic drag-and-place tower defense game. Once placed, a tower stays exactly where you put it. Tap a tower to upgrade or sell it. Waves start automatically. Every 10th wave brings a powerful elite enemy. Waves continue forever and gradually get harder. Credits are awarded after each wave.</div>
+<div class="info"><b>How to play</b><br>Drag a tower from the panel onto any open spot that is not on the track, like a classic drag-and-place tower defense game. Once placed, a tower stays exactly where you put it. Tap a tower to upgrade, change targeting, or sell it. Waves start automatically. Every 10th wave brings a powerful elite enemy. Waves continue forever and gradually get harder. Credits are awarded after each wave. Elite enemies have special defenses.</div>
 </aside>
 
 <div class="hint">Build anywhere off the track • Tap towers to manage them</div>
@@ -105,10 +106,10 @@ laser:{name:'Laser',cost:190,damage:10,range:165,rate:.28,bullet:0,color:'#ff5ef
 const enemyDefs={
 basic:{hp:65,speed:64,reward:10,color:'#67dc91',r:12},
 swift:{hp:42,speed:104,reward:12,color:'#59baf5',r:10},
-tank:{hp:210,speed:39,reward:28,color:'#ff9c55',r:16},
-boss:{hp:900,speed:31,reward:130,color:'#d67cff',r:22},
-juggernaut:{hp:1450,speed:27,reward:180,color:'#e85f7a',r:24},
-commander:{hp:2400,speed:22,reward:300,color:'#ffb84d',r:27}
+tank:{hp:210,speed:39,reward:28,color:'#ff9c55',r:16,armor:.12},
+boss:{hp:900,speed:31,reward:130,color:'#d67cff',r:22,shield:260},
+juggernaut:{hp:1450,speed:27,reward:180,color:'#e85f7a',r:24,armor:.28},
+commander:{hp:2400,speed:22,reward:300,color:'#ffb84d',r:27,armor:.18,aura:.28}
 };
 
 function resize(){
@@ -201,7 +202,7 @@ function spawnEnemy(){
     id:idSeq++,kind,x:path[0].x*W,y:path[0].y*H,seg:0,t:0,
     hp,maxHp:hp,
     speed:d.speed*speedDifficulty,
-    reward,r:d.r,slow:1,hit:0,angle:0
+    reward,r:d.r,slow:1,hit:0,angle:0,armor:d.armor||0,shield:(d.shield||0)*(1+wave*.035),aura:d.aura||0,baseSpeed:d.speed*speedDifficulty
   });
 }
 function enemyPos(e){
@@ -210,21 +211,27 @@ function enemyPos(e){
  return {x:a.x+dx*e.t,y:a.y+dy*e.t};
 }
 function updateEnemy(e,dt){
- e.slow=Math.min(1,e.slow+dt*.8);
- let remaining=e.speed*e.slow*dt;
- while(remaining>0 && e.seg<path.length-1){
-  const a=P(path[e.seg]),b=P(path[e.seg+1]);
-  const len=Math.hypot(b.x-a.x,b.y-a.y),left=(1-e.t)*len;
-  if(remaining<left){e.t+=remaining/len;remaining=0}else{remaining-=left;e.seg++;e.t=0}
- }
- if(e.seg>=path.length-1){
-   lives-=e.kind==='boss'?4:1;
-   addParticles(e.x,e.y,e.kind==='boss'?'#df90ff':'#ff7381',14);
-   addFloater(e.x,e.y-18,`-${e.kind==='boss'?4:1}`,'#ff7886');
-   e.hp=-999;
-   if(lives<=0)endGame(false);
- }
- const p=enemyPos(e);e.x=p.x;e.y=p.y;
+  e.slow=Math.min(1,e.slow+dt*.8);
+  let commanderBoost=1;
+  for(const c of enemies){
+    if(c!==e&&c.kind==='commander'&&c.hp>0&&Math.hypot(c.x-e.x,c.y-e.y)<155)
+      commanderBoost=Math.max(commanderBoost,1+(c.aura||0));
+  }
+  e.speed=e.baseSpeed*commanderBoost;
+  let remaining=e.speed*e.slow*dt;
+  while(remaining>0&&e.seg<path.length-1){
+    const a=P(path[e.seg]),b=P(path[e.seg+1]);
+    const len=Math.hypot(b.x-a.x,b.y-a.y),left=(1-e.t)*len;
+    if(remaining<left){e.t+=remaining/len;remaining=0}else{remaining-=left;e.seg++;e.t=0}
+  }
+  if(e.seg>=path.length-1){
+    lives-=e.kind==='boss'?4:1;
+    addParticles(e.x,e.y,e.kind==='boss'?'#df90ff':'#ff7381',14);
+    addFloater(e.x,e.y-18,`-${e.kind==='boss'?4:1}`,'#ff7886');
+    e.hp=-999;
+    if(lives<=0)endGame(false);
+  }
+  const p=enemyPos(e);e.x=p.x;e.y=p.y;
 }
 
 function selectTowerAt(x,y){
@@ -388,11 +395,18 @@ canvas.addEventListener('pointerdown',e=>{
  document.getElementById('selection').classList.remove('show');
 });
 
+const targetModes=['First','Last','Strongest','Weakest','Closest'];
+
 function getTarget(t){
- const candidates=enemies.filter(e=>e.hp>0 && Math.hypot(e.x-t.x,e.y-t.y)<=towerRange(t));
- if(!candidates.length)return null;
- if(t.targeting==='Strong')return candidates.reduce((a,b)=>b.hp>b.hp?b:a,candidates[0]);
- return candidates.reduce((a,b)=>progressScore(b)-progressScore(a)>0?b:a,candidates[0]);
+  const candidates=enemies.filter(e=>e.hp>0&&Math.hypot(e.x-t.x,e.y-t.y)<=towerRange(t));
+  if(!candidates.length)return null;
+  switch(t.targeting||'First'){
+    case 'Last': return candidates.reduce((a,b)=>progressScore(b)<progressScore(a)?b:a,candidates[0]);
+    case 'Strongest': return candidates.reduce((a,b)=>b.hp>a.hp?b:a,candidates[0]);
+    case 'Weakest': return candidates.reduce((a,b)=>b.hp<a.hp?b:a,candidates[0]);
+    case 'Closest': return candidates.reduce((a,b)=>Math.hypot(b.x-t.x,b.y-t.y)<Math.hypot(a.x-t.x,a.y-t.y)?b:a,candidates[0]);
+    default: return candidates.reduce((a,b)=>progressScore(b)>progressScore(a)?b:a,candidates[0]);
+  }
 }
 function progressScore(e){return e.seg*1000+e.t*1000}
 function towerRange(t){return types[t.type].range*(1+(t.level-1)*.09)}
@@ -425,7 +439,14 @@ function resolveShot(s,dt){
      if(s.slow)target.slow=Math.min(target.slow,s.slow);
      addParticles(tx,ty,s.color,4);
      if(s.splash){
-       for(const e of enemies){if(e!==target&&e.hp>0&&Math.hypot(e.x-tx,e.y-ty)<=s.splash)e.hp-=s.damage*.5}
+       for(const e of enemies){
+ if(e!==target&&e.hp>0&&Math.hypot(e.x-tx,e.y-ty)<=s.splash){
+  let damage=s.damage*.5;
+  if(e.shield>0){const absorbed=Math.min(e.shield,damage);e.shield-=absorbed;damage-=absorbed}
+  if(damage>0)damage*=1-(e.armor||0);
+  e.hp-=damage;
+ }
+}
      }
    }
    return false;
@@ -847,11 +868,19 @@ function updateSelection(){
  document.getElementById('selDamage').textContent=Math.round(towerDamage(t));
  document.getElementById('selRange').textContent=Math.round(towerRange(t));
  document.getElementById('selTarget').textContent=t.targeting;
+  document.getElementById('targetBtn').textContent=`Target: ${t.targeting}`;
  const up=document.getElementById('upgradeBtn');
  if(t.level>=8){up.textContent='MAX LEVEL';up.disabled=true}
  else{up.textContent=`Upgrade — $${towerUpgradeCost(t)}`;up.disabled=money<towerUpgradeCost(t)}
 }
 
+document.getElementById('targetBtn').addEventListener('click',()=>{
+ if(!selectedTower)return;
+ const i=targetModes.indexOf(selectedTower.targeting||'First');
+ selectedTower.targeting=targetModes[(i+1)%targetModes.length];
+ showToast(`Targeting: ${selectedTower.targeting}`);
+ ui();
+});
 document.getElementById('upgradeBtn').addEventListener('click',()=>{
  if(!selectedTower)return;const cost=towerUpgradeCost(selectedTower);
  if(selectedTower.level>=8||money<cost)return;
