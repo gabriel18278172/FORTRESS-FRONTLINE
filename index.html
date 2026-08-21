@@ -16,7 +16,7 @@ body{touch-action:none}.app{height:100%;display:flex;flex-direction:column}
 .side h2{font-size:15px;margin:0 0 10px}.tower-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .tbtn{border:1px solid #304762;background:#17283e;color:#ecf5ff;border-radius:11px;padding:9px;cursor:pointer;text-align:left;transition:.15s;min-height:72px}.tbtn:hover{transform:translateY(-1px);background:#1d324c}.tbtn.active{border-color:#61d7ff;box-shadow:0 0 0 2px #61d7ff2f inset;background:#183950}.ticon{font-size:20px}.tname{font-size:12px;font-weight:900}.tcost{font-size:11px;color:#ffd45d;margin-top:2px}
 .controls{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:7px}.btn{border:0;border-radius:10px;padding:10px;background:#1b2f49;color:white;font-weight:850;cursor:pointer}.btn.primary{background:linear-gradient(135deg,#1aa7d6,#536bf4)}.btn:disabled{opacity:.4;cursor:not-allowed}
-.selection{display:none;margin-top:10px;border-top:1px solid #2c4058;padding-top:10px}.selection.show{display:block}.selected-title{font-weight:950;margin-bottom:6px}.row{display:flex;justify-content:space-between;margin:4px 0;color:#adbed2;font-size:12px}.row b{color:#fff}.upgrade{width:100%;margin-top:6px}
+.selection{display:none;margin-top:10px;border-top:1px solid #2c4058;padding-top:10px}.selection.show{display:block}.selected-title{font-weight:950;margin-bottom:6px}.row{display:flex;justify-content:space-between;margin:4px 0;color:#adbed2;font-size:12px}.row b{color:#fff}.upgrade{width:100%;margin-top:6px} .paths-title{font-size:11px;font-weight:900;color:#d7e6f5;margin-top:9px}.upgrade-paths{display:grid;gap:6px;margin-top:6px}.path-btn{width:100%;border:1px solid #304762;border-radius:9px;background:#17283e;color:#eef6ff;padding:8px;text-align:left;cursor:pointer}.path-btn:hover{background:#1d334d}.path-btn:disabled{opacity:.45;cursor:not-allowed}.path-btn.maxed{border-color:#63d49b;background:#17352d}.path-name{font-size:11px;font-weight:900}.path-desc{font-size:10px;color:#aebfd1;margin-top:2px}.path-cost{font-size:10px;color:#ffd45d;margin-top:4px}
 .info{margin-top:10px;border-top:1px solid #2c4058;padding-top:10px;font-size:11px;color:#afc2d8;line-height:1.45}
 .hint{position:absolute;left:15px;bottom:15px;padding:8px 11px;border-radius:10px;background:#0f1e31cc;border:1px solid #2b415d;color:#aabdD1;font-size:11px;pointer-events:none}
 .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%) translateY(-16px);opacity:0;padding:10px 15px;border-radius:11px;background:#13263c;border:1px solid #3a5675;font-weight:850;transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -60,10 +60,11 @@ body{touch-action:none}.app{height:100%;display:flex;flex-direction:column}
 <div class="row"><span>Range</span><b id="selRange">135</b></div>
 <div class="row"><span>Target</span><b id="selTarget">First</b></div>
 <button id="targetBtn" class="btn upgrade">Target: First</button>
-<button id="upgradeBtn" class="btn primary upgrade">Upgrade</button>
+<div class="paths-title">Upgrade Paths</div>
+<div id="upgradePaths" class="upgrade-paths"></div>
 <button id="sellBtn" class="btn upgrade">Sell</button>
 </div>
-<div class="info"><b>How to play</b><br>Drag a tower from the panel onto any open spot that is not on the track, like a classic drag-and-place tower defense game. Once placed, a tower stays exactly where you put it. Tap a tower to upgrade, change targeting, or sell it. Waves start automatically. Every 10th wave brings a powerful elite enemy. Waves continue forever and gradually get harder. Credits are awarded after each wave. Elite enemies have special defenses.</div>
+<div class="info"><b>How to play</b><br>Drag a tower from the panel onto any open spot that is not on the track, like a classic drag-and-place tower defense game. Once placed, a tower stays exactly where you put it. Tap a tower to choose an upgrade path, change targeting, or sell it. Waves start automatically. Every 10th wave brings a powerful elite enemy. Waves continue forever and gradually get harder. Credits are awarded after each wave. Elite enemies have special defenses.</div>
 </aside>
 
 <div class="hint">Build anywhere off the track • Tap towers to manage them</div>
@@ -101,6 +102,40 @@ frost:{name:'Frost',cost:100,damage:6,range:120,rate:.64,bullet:7,color:'#b9f0ff
 sniper:{name:'Sniper',cost:125,damage:75,range:250,rate:1.7,bullet:5,color:'#dca7ff',splash:0,speed:1000},
 artillery:{name:'Artillery',cost:160,damage:105,range:190,rate:2.5,bullet:4,color:'#ff8d58',splash:68,speed:300},
 laser:{name:'Laser',cost:190,damage:10,range:165,rate:.28,bullet:0,color:'#ff5ef4',splash:0,speed:1200}
+};
+
+
+const upgradePaths={
+ cannon:[
+  {name:'Heavy Shells',desc:'+30% damage each tier',mods:{damage:1.30}},
+  {name:'Blast Radius',desc:'+25% splash each tier',mods:{splash:1.25}},
+  {name:'Rapid Loader',desc:'-12% cooldown each tier',mods:{rate:.88}}
+ ],
+ rapid:[
+  {name:'High-Caliber',desc:'+24% damage each tier',mods:{damage:1.24}},
+  {name:'Overdrive',desc:'-14% cooldown each tier',mods:{rate:.86}},
+  {name:'Long Barrel',desc:'+22% range each tier',mods:{range:1.22}}
+ ],
+ frost:[
+  {name:'Deep Freeze',desc:'+28% damage each tier',mods:{damage:1.28}},
+  {name:'Wide Chill',desc:'+22% range each tier',mods:{range:1.22}},
+  {name:'Permafrost',desc:'stronger slow each tier',mods:{slow:.78}}
+ ],
+ sniper:[
+  {name:'Heavy Round',desc:'+32% damage each tier',mods:{damage:1.32}},
+  {name:'Long Scope',desc:'+24% range each tier',mods:{range:1.24}},
+  {name:'Quick Bolt',desc:'-12% cooldown each tier',mods:{rate:.88}}
+ ],
+ artillery:[
+  {name:'Siege Shells',desc:'+30% damage each tier',mods:{damage:1.30}},
+  {name:'Bigger Blast',desc:'+24% splash each tier',mods:{splash:1.24}},
+  {name:'Auto Loader',desc:'-12% cooldown each tier',mods:{rate:.88}}
+ ],
+ laser:[
+  {name:'Focused Beam',desc:'+28% damage each tier',mods:{damage:1.28}},
+  {name:'Extended Lens',desc:'+22% range each tier',mods:{range:1.22}},
+  {name:'Rapid Pulse',desc:'-12% cooldown each tier',mods:{rate:.88}}
+ ]
 };
 
 const enemyDefs={
@@ -276,7 +311,8 @@ function placeAt(x,y){
    angle:0,
    cool:0,
    totalSpent:typ.cost,
-   targeting:'First'
+   targeting:'First',
+   pathLevels:[0,0,0]
  });
 
  selectedBuild=null;
@@ -409,10 +445,36 @@ function getTarget(t){
   }
 }
 function progressScore(e){return e.seg*1000+e.t*1000}
-function towerRange(t){return types[t.type].range*(1+(t.level-1)*.09)}
-function towerDamage(t){return types[t.type].damage*Math.pow(1.27,t.level-1)}
-function towerRate(t){return types[t.type].rate*Math.pow(.91,t.level-1)}
-function towerUpgradeCost(t){return Math.floor(types[t.type].cost*(.75+t.level*.55))}
+
+function pathMultiplier(t,stat){
+ let m=1;
+ const levels=t.pathLevels||[0,0,0];
+ for(let i=0;i<3;i++){
+   const lv=levels[i]||0;
+   const mod=upgradePaths[t.type][i].mods[stat];
+   if(mod!==undefined)m*=Math.pow(mod,lv);
+ }
+ return m;
+}
+
+function towerTotalPathLevels(t){
+ return (t.pathLevels||[0,0,0]).reduce((a,b)=>a+b,0);
+}
+function towerRange(t){return types[t.type].range*(1+(towerTotalPathLevels(t)*.025))*pathMultiplier(t,'range')}
+function towerDamage(t){return types[t.type].damage*(1+towerTotalPathLevels(t)*.055)*pathMultiplier(t,'damage')}
+function towerRate(t){return types[t.type].rate*Math.pow(.985,towerTotalPathLevels(t))*pathMultiplier(t,'rate')}
+function towerSplash(t){return (types[t.type].splash||0)*pathMultiplier(t,'splash')}
+function towerSlow(t){
+ const base=types[t.type].slow||0;
+ const m=pathMultiplier(t,'slow');
+ return base*Math.max(.35,m);
+}
+
+function pathCost(t,index){
+ const lv=t.pathLevels?.[index]||0;
+ if(lv>=3)return Infinity;
+ return Math.floor(types[t.type].cost*(0.9+lv*.75)+towerTotalPathLevels(t)*8);
+}
 function updateTower(t,dt){
  t.cool-=dt;
  const target=getTarget(t);
@@ -421,7 +483,7 @@ function updateTower(t,dt){
   if(t.cool<=0){
     t.cool=towerRate(t);
     const typ=types[t.type];
-    shots.push({x:t.x,y:t.y,tx:target.x,ty:target.y,targetId:target.id,speed:typ.speed,color:typ.color,damage:towerDamage(t),splash:typ.splash,slow:typ.slow||0,tower:t});
+    shots.push({x:t.x,y:t.y,tx:target.x,ty:target.y,targetId:target.id,speed:typ.speed,color:typ.color,damage:towerDamage(t),splash:towerSplash(t),slow:towerSlow(t),tower:t});
   }
  }
 }
@@ -863,29 +925,49 @@ function drawEnemy(e){
 function updateSelection(){
  const t=selectedTower;if(!t)return;
  const typ=types[t.type];
- document.getElementById('selTitle').textContent=`${typ.name} • Lv ${t.level}`;
- document.getElementById('selLevel').textContent=t.level;
+ const total=towerTotalPathLevels(t);
+ document.getElementById('selTitle').textContent=`${typ.name} • ${total===0?'Base':`Lv ${total}`}`;
+ document.getElementById('selLevel').textContent=total+1;
  document.getElementById('selDamage').textContent=Math.round(towerDamage(t));
  document.getElementById('selRange').textContent=Math.round(towerRange(t));
  document.getElementById('selTarget').textContent=t.targeting;
-  document.getElementById('targetBtn').textContent=`Target: ${t.targeting}`;
- const up=document.getElementById('upgradeBtn');
- if(t.level>=8){up.textContent='MAX LEVEL';up.disabled=true}
- else{up.textContent=`Upgrade — $${towerUpgradeCost(t)}`;up.disabled=money<towerUpgradeCost(t)}
+ document.getElementById('targetBtn').textContent=`Target: ${t.targeting}`;
+
+ const container=document.getElementById('upgradePaths');
+ container.innerHTML='';
+ const levels=t.pathLevels||[0,0,0];
+
+ upgradePaths[t.type].forEach((pathInfo,index)=>{
+   const lv=levels[index]||0;
+   const btn=document.createElement('button');
+   btn.type='button';
+   btn.className='path-btn'+(lv>=3?' maxed':'');
+   btn.dataset.pathIndex=index;
+   const cost=pathCost(t,index);
+   btn.disabled=lv>=3||money<cost;
+   btn.innerHTML=`<div class="path-name">${pathInfo.name} • Tier ${lv}/3</div>
+                  <div class="path-desc">${pathInfo.desc}</div>
+                  <div class="path-cost">${lv>=3?'MAXED':`Upgrade — $${cost}`}</div>`;
+   container.appendChild(btn);
+ });
 }
 
-document.getElementById('targetBtn').addEventListener('click',()=>{
- if(!selectedTower)return;
- const i=targetModes.indexOf(selectedTower.targeting||'First');
- selectedTower.targeting=targetModes[(i+1)%targetModes.length];
- showToast(`Targeting: ${selectedTower.targeting}`);
+document.getElementById('upgradePaths').addEventListener('click',e=>{
+ const btn=e.target.closest('.path-btn');
+ if(!btn||btn.disabled||!selectedTower)return;
+ const index=Number(btn.dataset.pathIndex);
+ const levels=selectedTower.pathLevels||(selectedTower.pathLevels=[0,0,0]);
+ const lv=levels[index]||0;
+ if(lv>=3)return;
+ const cost=pathCost(selectedTower,index);
+ if(money<cost)return;
+ money-=cost;
+ levels[index]=lv+1;
+ selectedTower.totalSpent+=cost;
+ showToast(`${upgradePaths[selectedTower.type][index].name} Tier ${lv+1}!`);
  ui();
 });
-document.getElementById('upgradeBtn').addEventListener('click',()=>{
- if(!selectedTower)return;const cost=towerUpgradeCost(selectedTower);
- if(selectedTower.level>=8||money<cost)return;
- money-=cost;selectedTower.level++;selectedTower.totalSpent+=cost;showToast('Tower upgraded!');ui();
-});
+
 document.getElementById('sellBtn').addEventListener('click',()=>{
  if(!selectedTower)return;
  money+=Math.floor(selectedTower.totalSpent*.65);towers=towers.filter(x=>x!==selectedTower);selectedTower=null;
