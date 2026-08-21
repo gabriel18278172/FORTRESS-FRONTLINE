@@ -16,7 +16,7 @@ body{touch-action:none}.app{height:100%;display:flex;flex-direction:column}
 .side h2{font-size:15px;margin:0 0 10px}.tower-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .tbtn{border:1px solid #304762;background:#17283e;color:#ecf5ff;border-radius:11px;padding:9px;cursor:pointer;text-align:left;transition:.15s;min-height:72px}.tbtn:hover{transform:translateY(-1px);background:#1d324c}.tbtn.active{border-color:#61d7ff;box-shadow:0 0 0 2px #61d7ff2f inset;background:#183950}.ticon{font-size:20px}.tname{font-size:12px;font-weight:900}.tcost{font-size:11px;color:#ffd45d;margin-top:2px}
 .controls{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:7px}.btn{border:0;border-radius:10px;padding:10px;background:#1b2f49;color:white;font-weight:850;cursor:pointer}.btn.primary{background:linear-gradient(135deg,#1aa7d6,#536bf4)}.btn:disabled{opacity:.4;cursor:not-allowed}
-.selection{display:none;margin-top:10px;border-top:1px solid #2c4058;padding-top:10px}.selection.show{display:block}.selected-title{font-weight:950;margin-bottom:6px}.row{display:flex;justify-content:space-between;margin:4px 0;color:#adbed2;font-size:12px}.row b{color:#fff}.upgrade{width:100%;margin-top:6px} .paths-title{font-size:11px;font-weight:900;color:#d7e6f5;margin-top:9px}.upgrade-paths{display:grid;gap:6px;margin-top:6px}.path-btn{width:100%;border:1px solid #304762;border-radius:9px;background:#17283e;color:#eef6ff;padding:8px;text-align:left;cursor:pointer}.path-btn:hover{background:#1d334d}.path-btn:disabled{opacity:.45;cursor:not-allowed}.path-btn.maxed{border-color:#63d49b;background:#17352d}.path-name{font-size:11px;font-weight:900}.path-desc{font-size:10px;color:#aebfd1;margin-top:2px}.path-cost{font-size:10px;color:#ffd45d;margin-top:4px}
+.selection{display:none;margin-top:10px;border-top:1px solid #2c4058;padding-top:10px}.selection.show{display:block}.selected-title{font-weight:950;margin-bottom:6px}.row{display:flex;justify-content:space-between;margin:4px 0;color:#adbed2;font-size:12px}.row b{color:#fff}.upgrade{width:100%;margin-top:6px} .paths-title{font-size:11px;font-weight:900;color:#d7e6f5;margin-top:9px}.upgrade-paths{display:grid;gap:6px;margin-top:6px}.path-btn{touch-action:manipulation;user-select:none;-webkit-user-select:none;width:100%;border:1px solid #304762;border-radius:9px;background:#17283e;color:#eef6ff;padding:8px;text-align:left;cursor:pointer}.path-btn:hover{background:#1d334d}.path-btn:disabled{opacity:.45;cursor:not-allowed}.path-btn.maxed{border-color:#63d49b;background:#17352d}.path-name{font-size:11px;font-weight:900}.path-desc{font-size:10px;color:#aebfd1;margin-top:2px}.path-cost{font-size:10px;color:#ffd45d;margin-top:4px}
 .info{margin-top:10px;border-top:1px solid #2c4058;padding-top:10px;font-size:11px;color:#afc2d8;line-height:1.45}
 .hint{position:absolute;left:15px;bottom:15px;padding:8px 11px;border-radius:10px;background:#0f1e31cc;border:1px solid #2b415d;color:#aabdD1;font-size:11px;pointer-events:none}
 .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%) translateY(-16px);opacity:0;padding:10px 15px;border-radius:11px;background:#13263c;border:1px solid #3a5675;font-weight:850;transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -934,6 +934,7 @@ function updateSelection(){
  document.getElementById('targetBtn').textContent=`Target: ${t.targeting}`;
 
  const container=document.getElementById('upgradePaths');
+ if(!container)return;
  container.innerHTML='';
  const levels=t.pathLevels||[0,0,0];
 
@@ -942,7 +943,8 @@ function updateSelection(){
    const btn=document.createElement('button');
    btn.type='button';
    btn.className='path-btn'+(lv>=3?' maxed':'');
-   btn.dataset.pathIndex=index;
+   btn.dataset.pathIndex=String(index);
+   btn.dataset.upgradePath='true';
    const cost=pathCost(t,index);
    btn.disabled=lv>=3||money<cost;
    btn.innerHTML=`<div class="path-name">${pathInfo.name} • Tier ${lv}/3</div>
@@ -952,15 +954,24 @@ function updateSelection(){
  });
 }
 
-document.getElementById('upgradePaths').addEventListener('click',e=>{
- const btn=e.target.closest('.path-btn');
- if(!btn||btn.disabled||!selectedTower)return;
+document.getElementById('upgradePaths').addEventListener('click',function(e){
+ const btn=e.target.closest('button[data-upgrade-path="true"]');
+ if(!btn)return;
+ e.preventDefault();
+ e.stopPropagation();
+
+ if(!selectedTower){showToast('Select a tower first');return;}
  const index=Number(btn.dataset.pathIndex);
+ if(!Number.isInteger(index)||index<0||index>2)return;
+
  const levels=selectedTower.pathLevels||(selectedTower.pathLevels=[0,0,0]);
  const lv=levels[index]||0;
- if(lv>=3)return;
+ if(lv>=3){showToast('That path is maxed');return;}
+
  const cost=pathCost(selectedTower,index);
- if(money<cost)return;
+ if(!Number.isFinite(cost)){showToast('That path is maxed');return;}
+ if(money<cost){showToast(`Need $${cost}`);return;}
+
  money-=cost;
  levels[index]=lv+1;
  selectedTower.totalSpent+=cost;
